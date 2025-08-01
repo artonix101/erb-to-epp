@@ -13,17 +13,17 @@ fn main() {
 
     let input_file = &args[1];
 
-    // Read input file
+    //read input file
     let input_content = fs::read_to_string(input_file)
         .unwrap_or_else(|_| {
             eprintln!("Error: Could not read file {}", input_file);
             process::exit(1);
         });
 
-    // Convert content
+    //convert content
     let output_content = convert_code(&input_content);
 
-    // Write or print output
+    //write or print output
     if args.len() == 3 {
         let output_file = &args[2];
         if let Err(e) = fs::write(output_file, output_content) {
@@ -36,15 +36,17 @@ fn main() {
 }
 
 fn convert_code(input: &str) -> String {
-    // Regex patterns
+    //regex patterns
     let tag_re = Regex::new(r"<%[\-=]?\s*.*?%>").unwrap(); //tags
     let var_re = Regex::new(r"@([a-zA-Z_]\w*)").unwrap(); //variables
     let if_re = Regex::new(r"<%(?P<open_dash>-?)\s*if\s+(?P<cond>.*?)\s*(?P<close_dash>-?)%>").unwrap(); //if
     let end_re = Regex::new(r"<%(?P<open_dash>-?)\s*end\s*(?P<close_dash>-?)%>").unwrap(); //end
     let elsif_re = Regex::new(r"<%(?P<open_dash>-?)\s*elsif\s+(?P<cond>.*?)\s*(?P<close_dash>-?)%>").unwrap(); //elsif
     let else_re = Regex::new(r"<%(?P<open_dash>-?)\s*else\s*(?P<close_dash>-?)%>").unwrap(); //else
+    let each_re = Regex::new(r"<%(?P<open_dash>-?)\s*\s+(?P<cond>.*?)\.each\s+do\s+\|\s*(?P<each_args>.*?)\s*\|\s*(?P<close_dash>-?)%>").unwrap(); //each
+    let each_args_re = Regex::new(r"\|\s*([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)\s*\|").unwrap(); //each_args
 
-    // Process tags
+    //process tags
     let mut result = input.to_string();
     result = tag_re
         .replace_all(&result, |caps: &regex::Captures| {
@@ -61,8 +63,18 @@ fn convert_code(input: &str) -> String {
             tag = elsif_re.replace_all(&tag, "<%$open_dash } else if $cond { $close_dash%>").to_string();
             //convert <% else %> to <% } else { %>
             tag = else_re.replace_all(&tag, "<%$open_dash } else { $close_dash%>").to_string();
-
-            tag
+            //convert <% ....each do | f,g,... | %> to <% ....each | f,g,... | { %>
+            tag = each_re.replace_all(&tag, "<%$open_dash $cond.each | $each_args | { $close_dash%>").to_string();
+            //convert | f,g,... | to | $f,$g,... | in loops
+            tag = each_args_re.replace_all(&tag, |caps: &regex::Captures| {
+                let vars = &caps[1];
+                let replaced: Vec<String> = vars
+                    .split(',')
+                    .map(|v| format!("${}", v.trim()))
+                    .collect();
+                format!("| {} |", replaced.join(", "))
+            }).to_string();
+            tag //output tag
         }).to_string();
     result
 }
