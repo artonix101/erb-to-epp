@@ -7,6 +7,7 @@ A CLI tool written in rust that converts embedded ruby (.erb) templates into emb
  - Preserving optional whitespace trimmers (<%- and -%>)
  - Leaving @ outside tags (like in email addresses) unchanged
  - Converting versioncmp fn into proper .epp
+ - Add missing $ to variables inside tags
 
 ### Usage
 
@@ -35,7 +36,7 @@ input.erb
   <%= f %>
 <% end %>
 <%- @features.each do | f, g, h | -%>
-  <%= f %><%= g %><%= h %>
+  <%= f %><%= g['something'] %><%= h -%>
 <% end %>
 
 <% if scope.function_versioncmp([@version, '1.0']) < 0 %>
@@ -48,17 +49,17 @@ output.epp
 ```
 <%- if $x { -%>
   Hello <%= $name %>
-<% } elsif $y { %>
+<% } else if $y { %>
   Hello <%= $other_name %>
 <%- } else { -%>
   No variable
 <%- } -%>
 
 <% $features.each | $f | { %>
-  <%= f %>
+  <%= $f %>
 <% } %>
 <%- $features.each | $f, $g, $h | { -%>
-  <%= f %><%= g %><%= h %>
+  <%= $f %><%= $g['something'] %><%= $h -%>
 <% } %>
 
 <% if versioncmp($version, '1.0') < 0 { %>
@@ -70,4 +71,4 @@ An Email: test@gmx.de
 
 ### ToDo
 
- - add $ to vars inside loops as seen in example above (f,g,h)
+ - add $ to vars inside loops as seen in example above (f,g,h) ✅
