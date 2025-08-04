@@ -46,7 +46,8 @@ fn convert_code(input: &str) -> String {
     let each_re = Regex::new(r"<%(?P<open_dash>-?)\s*\s+(?P<cond>.*?)\.each\s+do\s+\|\s*(?P<each_args>.*?)\s*\|\s*(?P<close_dash>-?)%>").unwrap(); //each
     let each_args_re = Regex::new(r"\|\s*([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)\s*\|").unwrap(); //each_args
     let scope_fn_re = Regex::new(r"\bscope\.function_").unwrap(); //scope.function_
-    let versioncmp_brackets_re = Regex::new(r"(versioncmp\s*\()\s*\[\s*(.*?)\s*\]\s*(\))").unwrap(); //square bracket insode versioncmpi
+    let versioncmp_brackets_re = Regex::new(r"(versioncmp\s*\()\s*\[\s*(.*?)\s*\]\s*(\))").unwrap(); //square bracket insode versioncmp
+    let var_no_dollar_re = Regex::new(r"<%=\s*(?P<expr>\w+(?:\[[^\]]+\]|\.\w+)*)\s*(?P<close_dash>-?)%>").unwrap();  //vars without $
 
     //process tags
     let mut result = input.to_string();
@@ -75,6 +76,19 @@ fn convert_code(input: &str) -> String {
                     .map(|v| format!("${}", v.trim()))
                     .collect();
                 format!("| {} |", replaced.join(", "))
+            }).to_string();
+            // add missing $ inside tags
+            tag = var_no_dollar_re.replace_all(&tag, |caps: &regex::Captures| {
+                let expr = &caps["expr"];
+                //let var = &caps[1];
+                let close_dash = caps.name("close_dash").map_or("", |m| m.as_str());
+                let root_var = expr.split(|c| c == '[' || c == '.').next().unwrap_or("");
+                if root_var.starts_with('$') {
+                    caps[0].to_string()
+                } else {
+                    let rewritten_expr = expr.replacen(root_var, &format!("${}", root_var), 1);
+                    format!("<%= {} {}%>", rewritten_expr, close_dash)
+                }
             }).to_string();
             //remove scope.function_
             tag = scope_fn_re.replace_all(&tag, "").to_string();
