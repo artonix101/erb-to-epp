@@ -4,6 +4,7 @@ A CLI tool written in rust that converts embedded ruby (.erb) templates into emb
  - Replacing @ with $ inside template tags
  - Converting if, elsif, else, and end into proper .epp blocks with curly brackets
  - Converting simple .each loops into proper .epp
+ - Converting complex .each loops that iterate through empty hashes (with || {}) by adding an if
  - Preserving optional whitespace trimmers (<%- and -%>)
  - Leaving @ outside tags (like in email addresses) unchanged
  - Converting versioncmp fn into proper .epp
@@ -43,6 +44,10 @@ input.erb
   Do Something
 <% end %>
 
+<%- (@var['thing1']['thing2']['thing3'] || {}).each do | x | -%>
+    Thing =<%= x['thing'] %>
+<% end -%>
+
 An Email: test@gmx.de
 ```
 output.epp
@@ -65,6 +70,12 @@ output.epp
 <% if versioncmp($version, '1.0') < 0 { %>
   Do Something
 <% } %>
+
+<%- if ('thing1' in $var) and ('thing2' in $var['thing1']) and ('thing3' in $var['thing1']['thing2']) and ($var['thing1']['thing2']['thing3'] =~ Array) { -%>
+<%- $var['thing1']['thing2']['thing3'].each | $x | { -%>
+    Thing =<%= $x['thing'] %>
+<% } -%>
+<%- } -%>
 
 An Email: test@gmx.de
 ```
