@@ -121,6 +121,8 @@ fn convert_code(input: &str) -> String {
                 }
                 //final path for type checki
                 if let Some(last_key) = keys.last() {
+                    let parent_path = path.clone();
+                    checks.push(format!("('{}' in {})", last_key, parent_path));
                     path += &format!("[\'{}\']", last_key);
                     checks.push(format!("({} =~ Array)", path));
                 }
