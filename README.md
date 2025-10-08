@@ -83,3 +83,21 @@ An Email: test@gmx.de
 ### ToDo
 
  - add $ to vars inside loops as seen in example above (f,g,h) ✅
+ - add creation of parameter tags like <%- | Hash $hash | -%> to beginning of new epp file
+ - solve problem of which parameter tags should be added and what datatype they get based on what is in the template. Not so easy (without knowing the manifest or hiera there is no way of knowing what the datatypes are). This could be done with manual input from user like this:
+
+```
+Found following parameters in input.erb:
+@x, @name, @othername, @features, @version, @var
+Is this correct? If not please specify which of these to eliminate (separated by commas if more than one):
+Done.
+Specify Datatypes of parameters for the tags (check your manifest or hiera, i.e. hash, string, boolean)
+$x:
+$name:
+$othername:
+$features:
+$version:
+$var:
+
+Done.
+```
