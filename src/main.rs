@@ -1,4 +1,4 @@
-use regex::Regex;
+use regex_lite::Regex;
 use std::env;
 use std::fs;
 use std::process;
@@ -55,11 +55,11 @@ fn convert_code(input: &str) -> String {
     let mut result = input.to_string();
     let mut transformed_loops = 0; //count tranformed loops
     result = tag_re
-        .replace_all(&result, |caps: &regex::Captures| {
+        .replace_all(&result, |caps: &regex_lite::Captures| {
             let mut tag = caps[0].to_string();
             // Replace all @var with $var
             tag = var_re
-                .replace_all(&tag, |c: &regex::Captures| format!("${}", &c[1]))
+                .replace_all(&tag, |c: &regex_lite::Captures| format!("${}", &c[1]))
                 .to_string();
             //convert <% if ... %> to <% if ... { %>
             tag = if_re.replace_all(&tag, "<%$open_dash if $cond { $close_dash%>").to_string();
@@ -72,7 +72,7 @@ fn convert_code(input: &str) -> String {
             //convert <% ....each do | f,g,... | %> to <% ....each | f,g,... | { %>
             tag = each_re_1.replace_all(&tag, "<%$open_dash $cond.each | $each_args | { $close_dash%>").to_string();
             //convert | f,g,... | to | $f,$g,... | in loops
-            tag = each_args_re.replace_all(&tag, |caps: &regex::Captures| {
+            tag = each_args_re.replace_all(&tag, |caps: &regex_lite::Captures| {
                 let vars = &caps[1];
                 let replaced: Vec<String> = vars
                     .split(',')
@@ -81,7 +81,7 @@ fn convert_code(input: &str) -> String {
                 format!("| {} |", replaced.join(", "))
             }).to_string();
             // add missing $ inside tags
-            tag = var_no_dollar_re.replace_all(&tag, |caps: &regex::Captures| {
+            tag = var_no_dollar_re.replace_all(&tag, |caps: &regex_lite::Captures| {
                 let expr = &caps["expr"];
                 //let var = &caps[1];
                 let close_dash = caps.name("close_dash").map_or("", |m| m.as_str());
@@ -94,7 +94,7 @@ fn convert_code(input: &str) -> String {
                 }
             }).to_string();
             // add if to before each fn
-            tag = each_re_2.replace_all(&tag, |caps: &regex::Captures| {
+            tag = each_re_2.replace_all(&tag, |caps: &regex_lite::Captures| {
                 transformed_loops += 1;
                 let open_dash = caps.name("open_dash").map_or("", |m| m.as_str());
                 let close_dash = caps.name("close_dash").map_or("", |m| m.as_str());
@@ -136,7 +136,7 @@ fn convert_code(input: &str) -> String {
             }).to_string();
             //add tag to end of .each loop
             let mut count = 0;
-            tag = loop_end_re.replace_all(&tag, |caps: &regex::Captures| {
+            tag = loop_end_re.replace_all(&tag, |caps: &regex_lite::Captures| {
                 let mut result = caps[0].to_string();
                 if count < transformed_loops {
                     result.push_str("\n<%- } -%>");
