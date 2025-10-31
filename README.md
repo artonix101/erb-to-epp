@@ -9,6 +9,7 @@ A CLI tool written in rust that converts embedded ruby (.erb) templates into emb
  - Leaving @ outside tags (like in email addresses) unchanged
  - Converting versioncmp fn into proper .epp
  - Add missing $ to variables inside tags
+ - Add parameter tags like <%- | Hash $hash | -%> to beginning of new epp file
 
 ### Usage
 
@@ -25,9 +26,9 @@ A CLI tool written in rust that converts embedded ruby (.erb) templates into emb
 
 input.erb
 ```
-<%- if @x -%>
+<%- if @name -%>
   Hello <%= @name %>
-<% elsif @y %>
+<% elsif @other_name %>
   Hello <%= @other_name %>
 <%- else -%>
   No variable
@@ -44,17 +45,23 @@ input.erb
   Do Something
 <% end %>
 
-<%- (@var['thing1']['thing2']['thing3'] || {}).each do | x | -%>
-    Thing =<%= x['thing'] %>
+<%- (@vars['thing1']['thing2']['thing3'] || {}).each do | var | -%>
+    Thing =<%= var['thing'] %>
 <% end -%>
 
 An Email: test@gmx.de
 ```
 output.epp
 ```
-<%- if $x { -%>
+<%- | Hash $features,
+      String $name,
+      String $other_name,
+      Array $vars,
+      String $version,
+| -%>
+<%- if $name { -%>
   Hello <%= $name %>
-<% } else if $y { %>
+<% } else if $other_name { %>
   Hello <%= $other_name %>
 <%- } else { -%>
   No variable
@@ -71,33 +78,11 @@ output.epp
   Do Something
 <% } %>
 
-<%- if ('thing1' in $var) and ('thing2' in $var['thing1']) and ('thing3' in $var['thing1']['thing2']) and ($var['thing1']['thing2']['thing3'] =~ Array) { -%>
-<%- $var['thing1']['thing2']['thing3'].each | $x | { -%>
-    Thing =<%= $x['thing'] %>
+<%- if ('thing1' in $vars) and ('thing2' in $vars['thing1']) and ('thing3' in $vars['thing1']['thing2']) and ($vars['thing1']['thing2']['thing3'] =~ Array) { -%>
+<%- $vars['thing1']['thing2']['thing3'].each | $var | { -%>
+    Thing =<%= $var['thing'] %>
 <% } -%>
 <%- } -%>
 
 An Email: test@gmx.de
-```
-
-### ToDo
-
- - add $ to vars inside loops as seen in example above (f,g,h) ✅
- - add creation of parameter tags like <%- | Hash $hash | -%> to beginning of new epp file
- - solve problem of which parameter tags should be added and what datatype they get based on what is in the template. Not so easy (without knowing the manifest or hiera there is no way of knowing what the datatypes are). This could be done with manual input from user like this:
-
-```
-Found following parameters in input.erb:
-@x, @name, @othername, @features, @version, @var
-Is this correct? If not please specify which of these to eliminate (separated by commas if more than one):
-Done.
-Specify Datatypes of parameters for the tags (check your manifest or hiera, i.e. hash, string, boolean)
-$x:
-$name:
-$othername:
-$features:
-$version:
-$var:
-
-Done.
 ```

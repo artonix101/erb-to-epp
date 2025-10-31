@@ -2,6 +2,42 @@ use regex_lite::Regex;
 use std::env;
 use std::fs;
 use std::process;
+use std::collections::HashSet;
+use std::io::{self, Write};
+
+// Extract all @-variables, excluding those in loops
+fn extract_template_parameters(input: &str) -> Vec<String> {
+    let tag_re = Regex::new(r"<%[\-=]?\s*([\s\S]*?)%>").unwrap();
+    let var_re = Regex::new(r"@([a-zA-Z_]\w*)").unwrap();
+    let pipe_re = Regex::new(r"each\s+(?:do\s+)?\|\s*([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)\s*\|").unwrap();
+
+    let mut all_vars: HashSet<String> = HashSet::new();
+    let mut pipe_vars: HashSet<String> = HashSet::new();
+
+    //only scan in tags
+    for tag_caps in tag_re.captures_iter(input) {
+        let tag_content = &tag_caps[1];
+        //find all @vars in this tag
+        for var_caps in var_re.captures_iter(tag_content) {
+            all_vars.insert(var_caps[1].to_string());
+        }
+        //find loop vars in this tag
+        for pipe_caps in pipe_re.captures_iter(tag_content) {
+            let pipe_list = &pipe_caps[1];
+            for var in pipe_list.split(',') {
+                pipe_vars.insert(var.trim().to_string());
+            }
+        }
+    }
+
+    //remove loop vars from all_vars
+    all_vars.retain(|v| !pipe_vars.contains(v));
+
+    //sort for deterministic output
+    let mut vars: Vec<_> = all_vars.into_iter().collect();
+    vars.sort();
+    vars
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -20,10 +56,80 @@ fn main() {
             process::exit(1);
         });
 
-    //convert content
-    let output_content = convert_code(&input_content);
+    //etract parameters and prompt user
+    let mut params = extract_template_parameters(&input_content);
 
-    //write or print output
+    if params.is_empty() {
+        println!("No parameters found in {}.", input_file);
+    } else {
+        println!("Found following parameters in {}:", input_file);
+        println!("{}", params.iter().map(|v| format!("@{}", v)).collect::<Vec<_>>().join(", "));
+        println!("Is this correct (if yes, press enter)? If not please specify which of these to eliminate (separated by commas if more than one):");
+        print!("> ");
+        io::stdout().flush().unwrap();
+
+        let mut eliminate = String::new();
+        io::stdin().read_line(&mut eliminate).unwrap();
+        let eliminate = eliminate.trim();
+        if !eliminate.is_empty() && eliminate.to_lowercase() != "done" {
+            let to_remove: Vec<&str> = eliminate.split(',').map(|x| x.trim().trim_start_matches('@')).collect();
+            params.retain(|v| !to_remove.contains(&v.as_str()));
+        }
+
+        println!("Done.");
+        println!("Specify Datatypes of parameters for the tags (check your manifest or hiera, i.e. hash, string, boolean)");
+        let mut param_types = Vec::new();
+        for p in &params {
+            print!("${}: ", p);
+            io::stdout().flush().unwrap();
+            let mut dtype = String::new();
+            io::stdin().read_line(&mut dtype).unwrap();
+            let dtype = dtype.trim();
+            param_types.push((p.clone(), dtype.to_string()));
+        }
+
+        //convert code and prepend parameter tags
+        let mut output_content = convert_code(&input_content);
+
+        //build parameter tag block
+        let tagblock = if param_types.len() == 1 {
+            // Only one entry: everything on one line
+            let (name, dtype) = &param_types[0];
+            format!("<%- | {} ${} | -%>\n", capitalize_first(dtype), name)
+        } else {
+            //multiple entries: first on start line, each further entry on new line, closing on its own line
+            let mut s = format!("<%- | {} ${},", capitalize_first(&param_types[0].1), &param_types[0].0);
+            for (name, dtype) in param_types.iter().skip(1) {
+                s.push_str(&format!("\n      {} ${},", capitalize_first(dtype), name));
+            }
+            s.push_str("\n| -%>\n");
+            s
+        };
+        output_content = format!("{}{}", tagblock, output_content);
+
+        //helper function to capitalize first letter
+        fn capitalize_first(s: &str) -> String {
+            let mut c = s.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        }
+
+        if args.len() == 3 {
+            let output_file = &args[2];
+            if let Err(e) = fs::write(output_file, output_content) {
+                eprintln!("Error: Could not write to {}: {}", output_file, e);
+                process::exit(1);
+            }
+        } else {
+            println!("{}", output_content);
+        }
+        return;
+    }
+
+    //fallback: just convert if no parameters found
+    let output_content = convert_code(&input_content);
     if args.len() == 3 {
         let output_file = &args[2];
         if let Err(e) = fs::write(output_file, output_content) {
