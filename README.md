@@ -19,7 +19,7 @@ A CLI tool written in rust that converts embedded ruby (.erb) templates into emb
 ```
 ```
 #convert and save to an output file
-:/erb-to-epp input.erb output.epp
+./erb-to-epp input.erb output.epp
 ```
 
 ### Example
