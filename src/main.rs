@@ -146,6 +146,7 @@ fn convert_code(input: &str) -> String {
     let tag_re = Regex::new(r"<%[\-=]?\s*.*?%>").unwrap(); //tags
     let var_re = Regex::new(r"@([a-zA-Z_]\w*)").unwrap(); //variables
     let if_re = Regex::new(r"<%(?P<open_dash>-?)\s*if\s+(?P<cond>.*?)\s*(?P<close_dash>-?)%>").unwrap(); //if
+    let unless_re = Regex::new(r"<%(?P<open_dash>-?)\s*unless\s+(?P<cond>.*?)\s*(?P<close_dash>-?)%>").unwrap(); //if
     let end_re = Regex::new(r"<%(?P<open_dash>-?)\s*end\s*(?P<close_dash>-?)%>").unwrap(); //end
     let elsif_re = Regex::new(r"<%(?P<open_dash>-?)\s*elsif\s+(?P<cond>.*?)\s*(?P<close_dash>-?)%>").unwrap(); //elsif
     let else_re = Regex::new(r"<%(?P<open_dash>-?)\s*else\s*(?P<close_dash>-?)%>").unwrap(); //else
@@ -169,6 +170,8 @@ fn convert_code(input: &str) -> String {
                 .to_string();
             //convert <% if ... %> to <% if ... { %>
             tag = if_re.replace_all(&tag, "<%$open_dash if $cond { $close_dash%>").to_string();
+            //convert <% unless ... %> to <% unless ... { %>
+            tag = unless_re.replace_all(&tag, "<%$open_dash unless $cond { $close_dash%>").to_string();
             //convert <% end %> to <% } %>
             tag = end_re.replace_all(&tag, "<%$open_dash } $close_dash%>").to_string();
             //convert <% elsif ... %> to <% } elsif { %>

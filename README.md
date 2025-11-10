@@ -2,7 +2,7 @@
 
 A CLI tool written in rust that converts embedded ruby (.erb) templates into embedded puppet (.epp) compatible syntax by:
  - Replacing @ with $ inside template tags
- - Converting if, elsif, else, and end into proper .epp blocks with curly brackets
+ - Converting if, unless, elsif, else, and end into proper .epp blocks with curly brackets
  - Converting simple .each loops into proper .epp
  - Converting complex .each loops that iterate through empty hashes (with || {}) by adding an if
  - Preserving optional whitespace trimmers (<%- and -%>)
@@ -32,6 +32,10 @@ input.erb
   Hello <%= @other_name %>
 <%- else -%>
   No variable
+<%- end -%>
+
+<%- unless $name -%>
+  No Name
 <%- end -%>
 
 <% @features.each do | f | %>
@@ -65,6 +69,10 @@ output.epp
   Hello <%= $other_name %>
 <%- } else { -%>
   No variable
+<%- } -%>
+
+<%- unless $name { -%>
+  No Name
 <%- } -%>
 
 <% $features.each | $f | { %>
